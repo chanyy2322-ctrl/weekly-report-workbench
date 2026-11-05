@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>周报工作台 · 基础版（离线可用）</title>
+<style>
+  :root{
+    --g1:#35A97A; --g2:#4FC08D; --gl:#F0F9F3; --gd:#2A8A62;
+    --ink:#2C3A34; --sub:#75837C; --line:#E6EDE9; --bg:#F4F7F5; --warn:#F2C14E; --blu:#3B6FB0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; font-size:14px;
+  }
+  /* ---------- 顶栏 ---------- */
+  .top{
+    background:#fff; border-bottom:1px solid var(--line);
+    padding:14px 22px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    position:sticky; top:0; z-index:50;
+  }
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo i{width:10px;height:10px;border-radius:50%;background:var(--g1);display:inline-block}
+  .logo b{font-size:17px;letter-spacing:.3px}
+  .logo span{font-size:12.5px;color:#9AA5A0}
+  .spacer{flex:1}
+  .btn{
+    border:1px solid var(--line); background:#fff; color:#415049;
+    padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px;
+    font-family:inherit; transition:.15s; white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--g1); color:var(--gd); background:var(--gl)}
+  .btn.pri{background:var(--g1); border-color:var(--g1); color:#fff; font-weight:700}
+  .btn.pri:hover{background:#2E9670; color:#fff}
+  .btn.sm{padding:6px 11px; font-size:12.5px}
+
+  /* ---------- 布局 ---------- */
+  .wrap{display:flex; gap:20px; padding:20px 22px 40px; align-items:flex-start}
+  .panel{
+    width:480px; flex:0 0 480px; background:#fff; border:1px solid var(--line);
+    border-radius:14px; padding:18px;
+  }
+  .stage{flex:1; min-width:0; overflow-x:auto}
+
+  /* ---------- 表单 ---------- */
+  .grp{margin-bottom:15px}
+  .lab{font-size:12.5px; color:#87948E; margin-bottom:6px; font-weight:700; letter-spacing:.3px}
+  .row{display:flex; gap:10px}
+  .row>*{flex:1; min-width:0}
+  select,input[type=text],textarea{
+    width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+    font-family:inherit; font-size:13px; color:var(--ink); background:#fff; outline:none;
+  }
+  select:focus,input:focus,textarea:focus{border-color:var(--g1)}
+  textarea{resize:vertical; line-height:1.5}
+  .hint{font-size:11.5px; color:#A6B0AB; margin-top:5px; line-height:1.5}
+
+  .tabs{display:flex; gap:6px; margin-bottom:10px}
+  .tab{
+    flex:1; text-align:center; padding:7px 4px; border-radius:8px; cursor:pointer;
+    font-size:12.5px; border:1px solid var(--line); background:#fff; color:#6B7A73;
+  }
+  .tab.on{background:var(--g1); border-color:var(--g1); color:#fff; font-weight:700}
+  .tab b{font-size:11px; opacity:.85; font-weight:400; display:block; margin-top:1px}
+
+  /* 版本选择 */
+  .vtabs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .vtab{
+    border:1px solid var(--line); border-radius:10px; padding:9px 8px; cursor:pointer;
+    background:#fff; transition:.15s; text-align:center;
+  }
+  .vtab .vt{justify-content:center}
+  .vtab:hover{border-color:var(--g1)}
+  .vtab.on{border-color:var(--g1); background:var(--gl); box-shadow:0 0 0 1px var(--g1) inset}
+  .vtab .vt{font-size:13.5px; font-weight:700; color:#2C3A34; display:flex; align-items:center; gap:6px}
+  .vtab .vt i{width:7px;height:7px;border-radius:50%;background:var(--g1);display:inline-block;font-style:normal}
+  .vtab .vd{font-size:11.5px; color:#87948E; margin-top:3px; line-height:1.4}
+  .vtab.on .vt i{background:var(--g2)}
+
+  .stats{display:grid; grid-template-columns:repeat(2,1fr); gap:9px; margin:12px 0}
+  .st{background:var(--gl); border-radius:10px; padding:11px 10px; text-align:center}
+  .st .n{font-size:24px; font-weight:800; color:var(--gd); line-height:1.1}
+  .st .t{font-size:11.5px; color:#7C8B84; margin-top:3px}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+  .chip{font-size:11.5px; padding:3px 9px; border-radius:20px; background:#EEF3F0; color:#5E6E66}
+  .chip i{font-style:normal; font-weight:700; color:var(--gd)}
+  .chip.bad{background:#FBEEEC; color:#B4655C}
+  .divider{height:1px; background:var(--line); margin:16px 0}
+  .sec-t2{font-size:13.5px; font-weight:700; margin-bottom:9px; display:flex; align-items:center; gap:7px}
+  .sec-t2 i{width:4px; height:14px; border-radius:2px; background:var(--g1); display:inline-block; font-style:normal}
+  .acts{display:flex; gap:8px; flex-wrap:wrap}
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
+    background:#26332D; color:#fff; padding:10px 20px; border-radius:20px; font-size:13px;
+    opacity:0; pointer-events:none; transition:.25s; z-index:99;
+  }
+  .toast.on{opacity:1; bottom:38px}
+
+  /* ---------- 卡片（预览/导出） ---------- */
+  .card{width:750px; background:#fff; border-radius:6px; overflow:hidden; box-shadow:0 4px 22px rgba(40,30,60,.10);}
+  .hdr{background:linear-gradient(120deg,#35A97A 0%,#4FC08D 100%); padding:22px 28px 24px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap}
+  .hdr-l{min-width:0; flex:1 1 auto}
+  .hdr .dt{flex:0 0 auto; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.30); border-radius:18px; padding:7px 15px; color:#fff; font-size:13.5px; font-weight:600; white-space:nowrap; margin-top:24px; margin-left:14px}
+  .hkp{flex-basis:100%; display:grid; grid-template-columns:1.2fr 1fr; gap:12px; margin-top:18px}
+  .hk{background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.30); border-radius:12px; padding:12px 16px; display:flex; align-items:center; gap:11px; color:#fff}
+  .hkck{flex:0 0 auto; width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,.30); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800}
+  .hkt b{font-size:14.5px; display:block} .hkt small{font-size:11.5px; opacity:.85; display:block; margin-top:2px}
+  .hkn{font-style:normal; font-size:26px; font-weight:800; margin-left:auto; line-height:1}
+  .hdr .tag{display:flex;align-items:center;gap:7px;font-size:13px;color:rgba(255,255,255,.95);letter-spacing:.3px}
+  .hdr .tag i{width:9px;height:9px;border-radius:50%;background:#fff;display:inline-block;font-style:normal}
+  .hdr h1{margin-top:14px;font-size:32px;font-weight:700;color:#fff;letter-spacing:.5px}
+  .hdr p{margin-top:9px;font-size:15px;color:rgba(255,255,255,.93)}
+  .bd{padding:24px 30px 8px}
+  .sec{margin-bottom:22px}
+  .sec-t{display:flex;align-items:center;gap:9px;font-size:17.5px;font-weight:700;color:#2C3A34;margin-bottom:14px}
+  .sec-t i{width:4.5px;height:19px;border-radius:2px;background:#35A97A;display:inline-block;font-style:normal}
+  .sec-t em{font-style:normal;font-size:14px;font-weight:400;color:#8A9691;margin-left:2px}
+  .ch2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .c2{background:#F0F9F3;border:1px solid #DDEBE3;border-radius:12px;padding:14px 16px}
+  .c2h{display:flex;align-items:center;gap:9px}
+  .c2h b{font-size:15.5px;color:#26332D}
+  .ic{flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:#35A97A;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .ic.i2{background:#3E8BFF}
+  .c2n{margin-left:auto;font-weight:800;color:#35A97A;font-size:15px}
+  .c2b{margin-top:8px;font-size:14px;color:#3B4A43;font-weight:600}
+  .c2s{margin-top:3px;font-size:12.5px;color:#7C8B84;line-height:1.5}
+  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .kpi .k{background:#F0F9F3;border-radius:11px;padding:14px 10px;text-align:center}
+  .kpi .k .n{font-size:29px;font-weight:800;color:#2A8A62;line-height:1.05}
+  .kpi .k .t{font-size:12.5px;color:#7C8B84;margin-top:5px}
+  .bars{list-style:none}
+  .bars li{display:flex;align-items:center;gap:11px;margin-bottom:9px;font-size:14.5px;color:#4A5852}
+  .bars .nm{flex:0 0 150px;color:#3B4A43;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bars .tr{flex:1;height:9px;background:#EDF3EF;border-radius:5px;overflow:hidden}
+  .bars .fl{display:block;height:100%;background:linear-gradient(90deg,#35A97A,#4FC08D);border-radius:5px}
+  .bars .ct{flex:0 0 34px;text-align:right;color:#7C8B84;font-size:13px}
+  .plist{list-style:none}
+  .plist li{display:flex;gap:10px;align-items:flex-start;font-size:15.5px;color:#4A5852;line-height:1.62;margin-bottom:11px}
+  .plist li:last-child{margin-bottom:0}
+  .plist .ck{color:#35A97A;font-weight:700;flex:0 0 auto}
+  table.rt{width:100%;border-collapse:collapse;font-size:14px}
+  table.rt th{background:#F0F9F3;color:#2A8A62;font-weight:700;text-align:left;padding:9px 11px;font-size:13px;border-bottom:1px solid #DDEBE3;}
+  table.rt td{padding:9px 11px;border-bottom:1px solid #EEF3F0;color:#4A5852;vertical-align:top}
+  table.rt tr:last-child td{border-bottom:none}
+  table.rt .s{font-size:12px;font-weight:700;padding:3px 9px;border-radius:5px;background:#CFEBDB;color:#2A8A62;white-space:nowrap}
+  table.rt .s.w{background:#FFF3D6;color:#8A6D2A}
+  table.rt .s.g{background:#E9EDF1;color:#5E6E66}
+  table.rt .co{font-weight:700;color:#26332D}
+  .notice{background:#FFF9E9;border-left:4px solid #F2C14E;border-radius:8px;padding:15px 18px;font-size:15px;color:#7C6A3C;line-height:1.65}
+  .notice b{color:#6B5A30}
+  .ftr{margin-top:24px;padding:14px 0 20px;text-align:center;font-size:12.5px;color:#A3ADA8;letter-spacing:1px}
+  .empty{padding:30px;text-align:center;color:#A6B0AB;font-size:14px;line-height:1.8}
+
+  /* 手写模式复用 */
+  .dbox{background:#F0F9F3;border-radius:11px;padding:20px 22px}
+  .ditem{margin-bottom:17px}
+  .ditem:last-child{margin-bottom:0}
+  .dhead{display:flex;align-items:center;gap:10px}
+  .pill{flex:0 0 auto;font-size:12.5px;font-weight:700;padding:3px 11px;border-radius:5px}
+  .pill.p1{background:#CFEBDB;color:#2A8A62}
+  .pill.p2{background:#E3EFE8;color:#7A6FA0}
+  .dhead b{font-size:16px;color:#26332D;font-weight:700}
+  .ddesc{margin-top:6px;margin-left:62px;font-size:14.5px;color:#75837C;line-height:1.6}
+  .slist{list-style:none}
+  .slist li{display:flex;gap:11px;align-items:flex-start;font-size:15.5px;color:#4A5852;line-height:1.62;margin-bottom:12px}
+  .slist li:last-child{margin-bottom:0}
+  .slist .n{flex:0 0 auto;width:21px;height:21px;border-radius:50%;background:#35A97A;color:#fff;font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:3px}
+
+  /* 学员管理 */
+  .mgmt{border:1px dashed var(--line); border-radius:10px; padding:12px; margin-bottom:14px}
+  .mgmt .grid{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  /* 板块勾选 */
+  .tabchk{
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    border:1px solid var(--line); border-radius:8px; padding:7px 6px;
+    font-size:12.5px; color:#415049; cursor:pointer; background:#fff; user-select:none;
+  }
+  .tabchk input{width:auto; accent-color:var(--g1)}
+  .tabchk.on{border-color:var(--g1); background:var(--gl); color:var(--gd); font-weight:700}
+  .tips-lab{display:flex; align-items:center; gap:8px; margin-bottom:7px; cursor:pointer}
+  .tips-lab input{width:auto; accent-color:var(--g1)}
+  .tips-lab .lab{margin:0}
+  .hdr h1 span{font-size:24px; margin-left:4px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="logo"><i></i><b>周报工作台</b><span>基础版 · 粘贴表格 → 自动统计 → 一键出卡片（离线可用）</span></div>
+  <div class="spacer"></div>
+  <button class="btn" onclick="exportJSON()">保存配置</button>
+  <button class="btn" onclick="document.getElementById('jsonFile').click()">载入数据 JSON</button>
+  <button class="btn pri" onclick="downloadWorkbench()">下载离线工作台</button>
+  <button class="btn pri" onclick="copyText()">复制纯文本版</button>
+  <button class="btn pri" onclick="exportPNG()">导出 PNG</button>
+</div>
+
+<div class="wrap">
+  <!-- ============ 左：控制面板 ============ -->
+  <div class="panel">
+    <div class="grp">
+      <div class="lab">选择学员</div>
+      <div class="row">
+        <select id="sid" onchange="onStudentChange()"></select>
+        <button class="btn sm" style="flex:0 0 auto" onclick="openMgmt()">管理学员</button>
+      </div>
+      <div class="hint" id="stuInfo"></div>
+    </div>
+
+    <div id="stuMgmt" class="mgmt" style="display:none">
+      <div class="lab">学员管理（新增任意学员 / 编辑 / 删除，离线保存）</div>
+      <div class="grid">
+        <input type="text" id="sm_name" placeholder="姓名 *">
+        <input type="text" id="sm_dir" placeholder="方向（如 SDE / 药企 R&D）">
+        <input type="text" id="sm_loc" placeholder="地区（可选）">
+        <input type="text" id="sm_doc" placeholder="腾讯文档链接或 file_id（可选）">
+      </div>
+      <div class="hint">如需我（WorkBuddy）直接读取腾讯文档，把链接或 file_id 填在这里，并在对话里让我拉取即可；离线使用时留空、手动粘贴表格也可。</div>
+      <div class="acts" style="margin-top:9px">
+        <button class="btn sm" onclick="saveStu()">保存当前修改</button>
+        <button class="btn sm" onclick="addStu()">新增学员</button>
+        <button class="btn sm" onclick="delStu()">删除当前</button>
+      </div>
+    </div>
+
+    <div class="row grp">
+      <div><div class="lab">周数（WEEK N）</div><input type="text" id="week" value="W1" oninput="render()"></div>
+      <div><div class="lab">日期区间</div><input type="text" id="range" value="10.27 - 10.31" oninput="render()"></div>
+    </div>
+
+    <div class="grp">
+      <div class="lab">周报版本</div>
+      <div class="vtabs" id="vtabs"></div>
+    </div>
+
+    <div class="grp">
+      <div class="lab">副标题（一句话概括，留空自动生成）</div>
+      <input type="text" id="sub" oninput="render()" placeholder="留空则自动生成">
+    </div>
+
+    <div class="grp">
+      <label class="tips-lab">
+        <input type="checkbox" id="chkTips" checked onchange="state.tipsOn=this.checked;render()">
+        <span class="lab">温馨提示板块（三种周报通用 · 勾选 = 加上，取消 = 不加）</span>
+      </label>
+      <textarea id="tips" rows="3" oninput="render()" placeholder="温馨提示内容，可自由编辑"></textarea>
+    </div>
+
+    <!-- 老生 / 数据模式 -->
+    <div id="paneData">
+      <div class="grp">
+        <div class="lab">粘贴表格数据（从腾讯文档 / Excel 直接 Ctrl+C → Ctrl+V）</div>
+        <div class="tabs">
+          <div class="tab on" id="tH" onclick="setSheet('h')">海投</div>
+          <div class="tab" id="tN" onclick="setSheet('n')">内推</div>
+        </div>
+        <textarea id="raw" rows="7" placeholder="日期	公司	岗位名称	岗位链接	是否投递	备注&#10;10.27	Google	SWE	https://...	是	已推进" oninput="onRaw()"></textarea>
+        <div class="hint">支持 TSV（腾讯文档/Excel 复制）与 CSV。第一行若含「公司/岗位」自动识别为表头。<br>内推状态取「岗位链接」列<b>后面那一列</b>的标注。</div>
+        <div style="margin-top:9px">
+          <select id="rangeMode" onchange="state.rangeMode=this.value;render()">
+            <option value="all">统计口径：全部行计入（复制哪几行就统计哪几行）</option>
+            <option value="range">统计口径：仅统计日期区间内的行</option>
+          </select>
+          <div class="hint">默认「全部行计入」——不会因为日期写成 <b>2026.7.30</b> 或跨月而被误过滤成 0。<br>要按自然周筛选时再切成「仅日期区间内」，并填顶部日期区间。</div>
+        </div>
+      </div>
+
+      <div class="stats" id="statBox"></div>
+      <div class="chips" id="statChips"></div>
+      <div id="diag" style="border-top:1px dashed var(--line);margin-top:12px;padding-top:10px"></div>
+
+      <div class="divider"></div>
+      <div class="sec-t2"><i></i>本周亮点（每行一条，留空按数据自动生成）</div>
+      <textarea id="hl" rows="4" oninput="render()" placeholder="留空则根据数据自动生成"></textarea>
+      <div class="grp" style="margin-top:12px">
+        <div class="lab">下周重点（每行一条）</div>
+        <textarea id="nw" rows="3" oninput="render()"></textarea>
+      </div>
+    </div>
+
+    <!-- 新生 / 阶段模式 -->
+    <div id="paneManual" style="display:none">
+      <div class="grp">
+        <div class="lab">板块勾选（勾选 = 保留该板块，取消 = 周报中不显示）</div>
+        <div class="row" style="gap:6px">
+          <label class="tabchk" id="tcProg"><input type="checkbox" id="chkProg" checked onchange="toggleSec('prog')">本周进展</label>
+          <label class="tabchk" id="tcDir"><input type="checkbox" id="chkDir" checked onchange="toggleSec('dir')">岗位方向</label>
+          <label class="tabchk" id="tcNext"><input type="checkbox" id="chkNext" checked onchange="toggleSec('next')">你的下一步</label>
+        </div>
+      </div>
+      <div class="grp" id="grpProg">
+        <div class="lab">本周进展（每行一条）</div>
+        <textarea id="mProg" rows="5" oninput="render()"></textarea>
+      </div>
+      <div class="grp" id="grpDir">
+        <div class="lab">岗位方向（每行：优先/备选 | 方向 | 说明）</div>
+        <textarea id="mDir" rows="4" oninput="render()" placeholder="优先 | AI 解决方案顾问 | 预土背景 + AI/数字化方向匹配度高"></textarea>
+      </div>
+      <div class="grp" id="grpNext">
+        <div class="lab">你的下一步（每行一条）</div>
+        <textarea id="mNext" rows="4" oninput="render()"></textarea>
+      </div>
+      <div class="grp" id="grpFore">
+        <div class="lab">下周预告</div>
+        <textarea id="mFore" rows="2" oninput="render()"></textarea>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="acts">
+      <button class="btn sm" onclick="clearSheet()">清空当前表</button>
+      <button class="btn sm" onclick="resetAll()">重置全部</button>
+      <button class="btn sm" onclick="downloadCard()">下载卡片 HTML</button>
+    </div>
+  </div>
+
+  <!-- ============ 右：预览 ============ -->
+  <div class="stage"><div id="preview"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="jsonFile" accept=".json" style="display:none" onchange="importJSON(this)">
+
+<script>
+/* ==================== 周报版本定义 ==================== */
+const VERSIONS = {
+  f1:{name:'周报', kind:'vet1', desc:'数据版 · 渠道进展 + 亮点 + 内推明细'},
+  f2:{name:'周报', kind:'vet2', desc:'重点岗位 · 海投少时直接展示重点列表'},
+  f3:{name:'周报', kind:'new',  desc:'阶段版 · 进展 + 方向 + 下一步'},
+};
+/* 温馨提示默认文案（可编辑、可勾选不加） */
+const DEFAULT_TIPS = '内推状态以「岗位链接」后一列的标注为准；「不考虑 / 岗位关闭 / 已过期」不计入内推重点岗位。数据来自腾讯文档投递记录。';
+
+/* ==================== 学员档案（基础版：空白，按需自行添加） ==================== */
+const DEFAULT_STUDENTS = [
+  {id:'s1', name:'学员 1', dir:'', loc:'', doc:''},
+];
+
+/* 内推状态：需排除在「内推重点」之外的取值 */
+const BAD_STATUS = ['不考虑','岗位关闭','已过期'];
+/* 方向关键词词典（用于自动生成岗位方向分布） */
+const KW = [
+  ['Software / SDE', /software|\bsde\b|后端|前端|full.?stack|全栈/i],
+  ['Data / Analytics', /data (analyst|scientist)|数据分析|business analyst|bi\b|analyst|analytics/i],
+  ['Machine Learning / AI', /machine learning|\bml\b|\bai\b|deep learning|算法/i],
+  ['Hardware / Embedded', /hardware|embedded|firmware|fpga|rtl|电路|硬件/i],
+  ['IC / Physical Design', /physical design|ic design|verification|asic|layout|semiconductor/i],
+  ['R&D / Research', /r&d|research|scientist|研究|研发|scientist/i],
+  ['Marketing / PMM', /marketing|pmm|product marketing|growth|品牌|市场/i],
+  ['Finance / IB / VC', /investment banking|\bib\b|\bvc\b|\bpe\b|quant|finance|trading|金融/i],
+  ['Consulting / Strategy', /consult|strategy|咨询|战略/i],
+  ['Product / Project', /product manager|project manager|产品经理|项目经理|\bpm\b/i],
+  ['Film / Video / Design', /film|video|production|design|creative|影视|拍摄|设计/i],
+  ['Engineering (Civil / Chem)', /structural|civil|chemical|process engineer|mechanical|材料|化工|结构/i],
+  ['Quality / Regulatory', /quality|\bqc\b|\bqa\b|regulatory|合规|质量/i],
+];
+
+/* ==================== 状态 ==================== */
+let STUDENTS = loadStudents() || DEFAULT_STUDENTS.map(s=>({...s}));
+let state = {
+  version:'f1', sid:STUDENTS[0].id, sheet:'h',
+  data:{h:{header:[],rows:[],autoHeader:false}, n:{header:[],rows:[],autoHeader:false}},
+  rangeMode:'all', includeNoDate:true,
+  tipsOn:true, sec:{prog:true, dir:true, next:true},
+  manual:{prog:'', dir:'', next:'', fore:''}
+};
+const EMPTY_T = ()=>({header:[],rows:[],autoHeader:false});
+function table(kind){ const t = state.data && state.data[kind]; return (t && t.rows) ? t : EMPTY_T(); }
+const LS_KEY = 'weekly_basic_v1';
+const LS_STU  = 'weekly_basic_students_v1';
+
+/* ==================== 工具 ==================== */
+const $ = id => document.getElementById(id);
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.remove('on'),1800);
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function lines(t){return String(t||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);}
+function curStudent(){return STUDENTS.find(s=>s.id===state.sid)||STUDENTS[0];}
+
+/* ==================== 表格解析 ==================== */
+function parseTable(text){
+  const raw = String(text||'').trim();
+  if(!raw) return {header:[], rows:[], autoHeader:false};
+  const rows = raw.split(/\r?\n/).map(l =>
+    l.indexOf('\t')>=0 ? l.split('\t') : l.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+  ).map(r=>r.map(c=>String(c).replace(/^"|"$/g,'').trim()));
+  const DEFAULT_HEADER = {
+    3:['日期','公司名称','岗位名称'],
+    4:['日期','公司名称','岗位名称','岗位链接'],
+    5:['日期','公司名称','岗位名称','岗位链接','备注'],
+    6:['日期','公司名称','岗位名称','岗位链接','是否投递','备注'],
+    7:['日期','公司名称','岗位名称','岗位链接','是否投递','备注','跟进']
+  };
+  const isDateLike = s => {
+    s=String(s||'').trim();
+    return /^\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}/.test(s) || /^\d{1,2}[\/\-.]\d{1,2}$/.test(s) || /^\d{4}\s*年/.test(s);
+  };
+  let header=[], body=rows, autoHeader=false;
+  if(rows.length){
+    const first = rows[0].join(' ');
+    const looksHeader = /公司|岗位|职位|日期|company|title|date|备注|状态|投递/i.test(first) && !/https?:/i.test(first);
+    if(looksHeader){
+      header = rows[0]; body = rows.slice(1);
+    } else if(isDateLike(rows[0][0])){
+      const n = rows[0].length;
+      header = DEFAULT_HEADER[n] ||
+        DEFAULT_HEADER[6].concat(Array.from({length:Math.max(0,n-6)},(_,i)=>'列'+(7+i))).slice(0,n);
+      body = rows; autoHeader = true;
+    }
+  }
+  return {header, rows: body.filter(r=>r.some(c=>c)), autoHeader};
+}
+function findCol(header, regs){
+  for(const reg of regs){ for(let i=0;i<header.length;i++) if(reg.test(header[i])) return i; }
+  return -1;
+}
+/* 内推状态列：链接列之后的那一列；若后一列是「学生意愿」则再往后一列 */
+function statusCol(header){
+  const link = findCol(header, [/链接|link|url|jd\b/i]);
+  if(link>=0 && header[link+1]){
+    if(/学生意愿/.test(header[link+1]) && header[link+2]) return link+2;
+    return link+1;
+  }
+  return findCol(header, [/内推情况|是否推进|岗位备注|状态|进度|备注|反馈/i]);
+}
+function parseDate(s){
+  s=String(s||'').trim(); if(!s) return null;
+  let m=s.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m=s.match(/(\d{1,2})[\/\-.](\d{1,2})/);
+  if(m) return new Date(new Date().getFullYear(),+m[1]-1,+m[2]);
+  return null;
+}
+function rangeBounds(){
+  const r=String($('range').value||'').match(/(\d{1,2})[\/\-.](\d{1,2})\s*[-~至]\s*(\d{1,2})[\/\-.](\d{1,2})/);
+  if(!r) return null;
+  const y=new Date().getFullYear();
+  return {a:new Date(y,+r[1]-1,+r[2]), b:new Date(y,+r[3]-1,+r[4],23,59,59)};
+}
+function inRange(d, b){ return !b || (d && d>=b.a && d<=b.b); }
+
+/* ==================== 统计 ==================== */
+function analyze(kind){
+  const t = table(kind);
+  const header = t.header||[], rows = t.rows||[];
+  if(!rows.length) return {total:0, week:0, rows:[], weekRows:[], statuses:{}, dirs:{}, cols:{date:-1,comp:-1,job:-1,link:-1,done:-1}, stCol:-1};
+  const cols = {
+    date: findCol(header,[/日期|时间|date/i]),
+    comp: findCol(header,[/公司|company|企业|雇主/i]),
+    job:  findCol(header,[/岗位/,/职位/,/job|title|position/i,/名称/]),
+    link: findCol(header,[/链接|link|url/i]),
+    done: findCol(header,[/是否投递|已投|投递状态/i])
+  };
+  if(cols.comp<0 && header.length) cols.comp = 0;
+  if(cols.job<0  && header.length>1) cols.job = 1;
+  const stCol = statusCol(header);
+  const b = rangeBounds();
+  const out=[], statuses={};
+  rows.forEach(r=>{
+    const d = cols.date>=0 ? parseDate(r[cols.date]) : null;
+    const rec = {
+      date: cols.date>=0? r[cols.date]:'',
+      comp: r[cols.comp]||'', job: r[cols.job]||'',
+      link: cols.link>=0? r[cols.link]:'',
+      status: stCol>=0? (r[stCol]||'').trim() : '',
+      done: cols.done>=0? (r[cols.done]||'').trim() : '',
+      inRange: state.rangeMode==='all' ? true : (d ? inRange(d,b) : !!state.includeNoDate), d
+    };
+    out.push(rec);
+    if(rec.status) statuses[rec.status]=(statuses[rec.status]||0)+1;
+  });
+  const inR = out.filter(r=>r.inRange);
+  const dirsIn = {};
+  inR.forEach(r=>{
+    const txt=(r.job+' '+r.comp);
+    for(const [nm,reg] of KW){ if(reg.test(txt)){ dirsIn[nm]=(dirsIn[nm]||0)+1; break; } }
+  });
+  return {total:out.length, week:inR.length, rows:out, weekRows:inR, statuses, dirs:dirsIn, cols, stCol};
+}
+
+/* ==================== 渲染卡片 ==================== */
+/* W2 → 第二周 */
+function wkCN(w){
+  const n=parseInt(String(w).replace(/^W/i,''),10);
+  if(isNaN(n)||n<1) return String(w).replace(/^W/i,'')||'';
+  const C='零一二三四五六七八九';
+  if(n<10) return C[n];
+  if(n===10) return '十';
+  if(n<20) return '十'+(n%10?C[n%10]:'');
+  return String(n);
+}
+function focusTable(rows,title){
+  return `
+      <div class="sec">
+        <div class="sec-t"><i></i>${title}<em>共 ${rows.length} 个</em></div>
+        <table class="rt">
+          <tr><th style="width:150px">公司</th><th>岗位</th><th style="width:110px">状态</th></tr>
+          ${rows.map(r=>{
+            const st=(r.status||r.done||'').trim()||'待确认';
+            const cls = /已推进|推进中|已投/.test(st)?'' : (/待确认|待作品|暂时/.test(st)?'w':'g');
+            return `<tr><td class="co">${esc(r.comp||'—')}</td><td>${esc(r.job||'—')}</td><td><span class="s ${cls}">${esc(st)}</span></td></tr>`;
+          }).join('')}
+        </table>
+      </div>`;
+}
+function buildCard(){
+  const s = curStudent(), week=$('week').value.trim(), range=$('range').value.trim();
+  const v = VERSIONS[state.version];
+  let body='', sub='', hn=0, nn=0, focus=[], H=null, N=null;
+  if(v.kind!=='new'){
+    H=analyze('h'); N=analyze('n');
+    hn=H.week; nn=N.week;
+    focus=N.weekRows.filter(r=>!BAD_STATUS.some(b=>r.status.includes(b)));
+  }
+  const tipsHtml = state.tipsOn
+    ? `<div class="notice"><b>温馨提示：</b>${esc($('tips').value.trim()||DEFAULT_TIPS)}</div>` : '';
+
+  if(v.kind==='vet1'){
+    /* 形式一 · 数据版（谢孝样式） */
+    const total=hn+nn;
+    sub=$('sub').value.trim();
+    if(!sub) sub = total ? `本周推进 ${total} 个岗位机会，海投与内推双线并行！` : '本周按计划推进，投递与跟进同步进行！';
+
+    let hl=lines($('hl').value);
+    if(!hl.length){
+      hl=[];
+      if(hn) hl.push(`海投渠道本周推进 ${hn} 个岗位，覆盖 ${Object.keys(H.dirs).length||1} 个方向`);
+      if(nn) hl.push(`内推渠道新增 ${nn} 个岗位，其中 ${focus.filter(r=>/已推进|推进中|已投/.test(r.status)).length} 个已确认推进`);
+      if(!hl.length) hl.push('本周完成岗位盘点与投递材料准备，为下一轮集中投递打好基础');
+    }
+
+    body += `
+      <div class="sec">
+        <div class="sec-t"><i></i>渠道进展<em>本周 ${esc(range)}</em></div>
+        <div class="kpi">
+          <div class="k"><div class="n">${hn}</div><div class="t">海投</div></div>
+          <div class="k"><div class="n">${nn}</div><div class="t">内推</div></div>
+          <div class="k"><div class="n">${total}</div><div class="t">合计</div></div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-t"><i></i>本周亮点</div>
+        <ul class="plist">${hl.map(t=>`<li><span class="ck">✓</span><span>${esc(t)}</span></li>`).join('')}</ul>
+      </div>`;
+    if(focus.length) body += focusTable(focus,'内推明细');
+    const nw=lines($('nw').value);
+    body += `
+      <div class="sec">
+        <div class="sec-t"><i></i>下周重点</div>
+        <ul class="plist">${(nw.length?nw:['持续跟进本周已推进岗位的反馈','补充下一批定向岗位并完成投递','保持与导师 / 内推人的沟通节奏']).map(t=>`<li><span class="ck">✓</span><span>${esc(t)}</span></li>`).join('')}</ul>
+      </div>`;
+
+  } else if(v.kind==='vet2'){
+    /* 形式二 · 重点岗位版（海投少：不呈现具体数量，直接展示重点岗位） */
+    sub=$('sub').value.trim();
+    if(!sub) sub = (s.dir||s.loc) ? [s.dir,s.loc].filter(Boolean).join(' · ') : '本周推进岗位投递与内推跟进，双线并行！';
+
+    let hl=lines($('hl').value);
+    if(!hl.length){
+      hl=[];
+      if(hn) hl.push('海投岗位均已投递完成，重点岗位整理见下方列表');
+      if(focus.length) hl.push(`内推待确认（${focus.length} 个）：${focus.slice(0,3).map(r=>r.comp).filter(Boolean).join('、')}`);
+      if(!hl.length) hl.push('本周完成岗位盘点与投递材料准备，为下一轮集中投递打好基础');
+    }
+
+    body += `
+      <div class="sec">
+        <div class="sec-t"><i></i>两大渠道进展</div>
+        <div class="ch2">
+          <div class="c2">
+            <div class="c2h"><span class="ic">海</span><b>海投</b></div>
+            <div class="c2b">本周投递岗位已全部整理</div>
+            <div class="c2s">详见下方「海投重点岗位」列表</div>
+          </div>
+          <div class="c2">
+            <div class="c2h"><span class="ic i2">内</span><b>内推</b><span class="c2n">${focus.length} 个</span></div>
+            <div class="c2b">本周待确认</div>
+            <div class="c2s">${focus.slice(0,2).map(r=>esc([r.comp,r.job].filter(Boolean).join(' · '))).filter(Boolean).join('<br>')||'—'}</div>
+          </div>
+        </div>
+      </div>`;
+
+    if(H.weekRows.length){
+      body += `
+      <div class="sec">
+        <div class="sec-t"><i></i>海投重点岗位<em>共 ${H.weekRows.length} 个</em></div>
+        <table class="rt">
+          <tr><th style="width:150px">公司</th><th>岗位</th><th style="width:96px">状态</th></tr>
+          ${H.weekRows.map(r=>{
+            const raw=(r.done||r.status||'').trim();
+            const st=/^(yes|y|是|true|已投|已投递|已提交|已递)$/i.test(raw)?'已投递':(raw||'已投递');
+            const cls=/待/.test(st)?'w':'';
+            return `<tr><td class="co">${esc(r.comp||'—')}</td><td>${esc(r.job||'—')}</td><td><span class="s ${cls}">${esc(st)}</span></td></tr>`;
+          }).join('')}
+        </table>
+      </div>`;
+    }
+
+    {
+      const dm={}; [...Object.entries(H.dirs),...Object.entries(N.dirs)].forEach(([k,val])=>dm[k]=(dm[k]||0)+val);
+      const dArr=Object.entries(dm).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      const max=dArr.length?dArr[0][1]:1;
+      const PAL=['#35A97A','#3B6FB0','#F2A03D','#7C52E8','#E85D9E'];
+      if(dArr.length){
+        body += `
+        <div class="sec">
+          <div class="sec-t"><i></i>岗位方向分布</div>
+          <ul class="bars">${dArr.map(([k,val],i)=>`
+            <li><span class="nm">${esc(k)}</span><span class="tr"><span class="fl" style="width:${Math.max(8,Math.round(val/max*100))}%;background:${PAL[i%PAL.length]}"></span></span><span class="ct">${val}</span></li>`).join('')}
+          </ul>
+        </div>`;
+      }
+    }
+
+    body += `
+      <div class="sec">
+        <div class="sec-t"><i></i>本周亮点</div>
+        <ul class="plist">${hl.map(t=>`<li><span class="ck">✓</span><span>${esc(t)}</span></li>`).join('')}</ul>
+      </div>`;
+    if(focus.length) body += focusTable(focus,'内推重点岗位');
+    const nw=lines($('nw').value);
+    body += `
+      <div class="sec">
+        <div class="sec-t"><i></i>下周重点</div>
+        <ul class="plist">${(nw.length?nw:['跟进本周已投递岗位与内推的后续反馈','继续拓展本周重点方向岗位，保持投递节奏']).map(t=>`<li><span class="ck">✓</span><span>${esc(t)}</span></li>`).join('')}</ul>
+      </div>`;
+
+  } else {
+    /* 形式三 · 阶段版（尚嘉龙样式：进展/方向/下一步，板块可勾选） */
+    const sec=state.sec;
+    const prog=lines($('mProg').value), next=lines($('mNext').value);
+    const dirs=lines($('mDir').value).map(l=>l.split('|').map(x=>x.trim()));
+    sub=$('sub').value.trim()||'求职准备持续推进，继续保持节奏！';
+    if(sec.prog){
+      body += `<div class="sec"><div class="sec-t"><i></i>本周进展</div><ul class="plist">${
+        (prog.length?prog:['（待填写本周进展）']).map(t=>`<li><span class="ck">✓</span><span>${esc(t)}</span></li>`).join('')}</ul></div>`;
+    }
+    if(sec.dir){
+      body += `<div class="sec"><div class="sec-t"><i></i>为你锁定的方向${s.loc?`<em>${esc(s.loc)}</em>`:''}</div><div class="dbox">${
+        dirs.length ? dirs.map(d=>{
+          const lv=d[0]||'备选', cls=/优先|地区|主线|priority/i.test(lv)?(/地区/.test(lv)?'p2':'p1'):'p2';
+          return `<div class="ditem"><div class="dhead"><span class="pill ${cls}">${esc(lv)}</span><b>${esc(d[1]||'')}</b></div>${
+            d[2]?`<div class="ddesc">${esc(d[2])}</div>`:''}</div>`;
+        }).join('') : '<div class="ditem"><div class="dhead"><span class="pill p2">方向</span><b>（待填写岗位方向）</b></div></div>'
+      }</div></div>`;
+    }
+    if(sec.next){
+      body += `<div class="sec"><div class="sec-t"><i></i>你的下一步<em>（轻松推进）</em></div><ul class="slist">${
+        (next.length?next:['（待填写下一步）']).map((t,i)=>`<li><span class="n">${i+1}</span><span>${esc(t)}</span></li>`).join('')}</ul></div>`;
+    }
+    body += `<div class="notice"><b>🚀 下周预告：</b>${esc($('mFore').value.trim()||'下周继续按计划推进，有任何问题随时群里 @ 我们，一起加油早日上岸！💪')}</div>`;
+  }
+
+  if(state.tipsOn) body += tipsHtml;
+  body += `<div class="ftr">留学生求职辅导 · 周报</div>`;
+
+  const hkp = v.kind==='vet2' ? `
+      <div class="hkp">
+        <div class="hk"><span class="hkck">✓</span><div class="hkt"><b>海投 · 已投递</b><small>重点岗位见下方列表</small></div></div>
+        <div class="hk"><i class="hkn">${focus.length}</i><div class="hkt"><b>内推待确认</b><small>详见「内推重点岗位」</small></div></div>
+      </div>` : '';
+  const dt = v.kind==='vet2' ? `<div class="dt">${esc(range)}</div>` : '';
+  const h1 = v.kind==='new'
+    ? `${esc(s.name)} ${/^W\d+$/i.test(week)?`第${wkCN(week)}周`:esc(week)}周报 <span>🚀</span>`
+    : (v.kind==='vet2' ? `${esc(s.name)} 求职周报 <span>📚</span>` : `${esc(s.name)} 周报 <span>📚</span>`);
+  return `<div class="card"><div class="hdr">
+    <div class="hdr-l">
+      <div class="tag"><i></i>WEEK ${esc(week.replace(/^W/i,''))} · ${esc(v.name)}</div>
+      <h1>${h1}</h1>
+      <p>${esc(sub)}</p>
+    </div>
+    ${dt}${hkp}</div><div class="bd">${body}</div></div>`;
+}
+
+function render(){
+  $('preview').innerHTML = buildCard();
+  if(VERSIONS[state.version].kind!=='new'){ renderStats(); } else { $('statBox').innerHTML=''; $('statChips').innerHTML=''; $('diag').innerHTML=''; }
+  save();
+}
+function renderStats(){
+  const H=analyze('h'), N=analyze('n');
+  $('statBox').innerHTML = `
+    <div class="st"><div class="n">${H.week}</div><div class="t">海投（本周 / ${H.total}）</div></div>
+    <div class="st"><div class="n">${N.week}</div><div class="t">内推（本周 / ${N.total}）</div></div>`;
+  const chips=[];
+  Object.entries(N.statuses).forEach(([k,v])=>{
+    const bad=BAD_STATUS.some(b=>k.includes(b));
+    chips.push(`<span class="chip ${bad?'bad':''}">${esc(k)} <i>${v}</i></span>`);
+  });
+  $('statChips').innerHTML = chips.length? `<div class="lab" style="margin-bottom:4px">内推状态分布</div>`+chips.join('') : '';
+  renderDiag();
+}
+function renderDiag(){
+  const t = table(state.sheet), a = analyze(state.sheet), h = t.header||[];
+  const nm = state.sheet==='h'?'海投':'内推';
+  const map=[];
+  if(a.cols.date>=0) map.push(`日期→第${a.cols.date+1}列`);
+  if(a.cols.comp>=0) map.push(`公司→第${a.cols.comp+1}列`);
+  if(a.cols.job>=0)  map.push(`岗位→第${a.cols.job+1}列`);
+  if(a.cols.link>=0) map.push(`链接→第${a.cols.link+1}列`);
+  if(a.stCol>=0)     map.push(`<b style="color:#2A8A62">状态→第${a.stCol+1}列「${esc(h[a.stCol]||'')}」</b>`);
+  const ds=a.rows.map(r=>r.d).filter(Boolean).sort((x,y)=>x-y);
+  const fmt=d=>`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+  const dr = ds.length? `${fmt(ds[0])} ~ ${fmt(ds[ds.length-1])}` : '（未识别到日期）';
+  const bad = !a.total || a.stCol<0 || a.cols.comp<0 || a.cols.job<0;
+  $('diag').innerHTML =
+    `<div class="lab" style="margin-bottom:5px">解析诊断 · 当前表（${nm}）</div>
+     <div style="line-height:1.75;color:${bad?'#B4655C':'#5E6E66'}">
+       识别 <b>${a.total}</b> 行，计入统计 <b>${a.week}</b> 行（口径：${state.rangeMode==='all'?'全部行':esc($('range').value.trim()||'未填区间')}）<br>
+       表头：${h.length? esc(h.join(' / ')) : '<b>未识别到表头</b>'}${t.autoHeader?' <span style="color:#C08A2E">（你没框表头，已自动补默认表头）</span>':''}<br>
+       列映射：${map.length? map.join('，') : '<b>无法识别 —— 请确认粘进来的是表格而不是截图/图片</b>'}<br>
+       日期范围：${dr}${state.rangeMode==='range'&&a.total&&!a.week?' <b style="color:#B4655C">← 与顶部日期区间无交集，所以统计为 0</b>':''}
+     </div>`;
+}
+
+/* ==================== 交互 ==================== */
+function setVersion(v){
+  state.version=v;
+  [...$('vtabs').children].forEach(el=>el.classList.toggle('on', el.dataset.v===v));
+  const kind=VERSIONS[v].kind;
+  $('paneData').style.display   = kind!=='new'?'':'none';
+  $('paneManual').style.display = kind==='new'?'':'none';
+  if(kind==='new') syncSecUI();
+  render();
+}
+/* 阶段版板块勾选 */
+function toggleSec(k){
+  state.sec[k]=$('chk'+k.charAt(0).toUpperCase()+k.slice(1)).checked;
+  syncSecUI(); render();
+}
+function syncSecUI(){
+  const map={prog:['chkProg','grpProg','tcProg'], dir:['chkDir','grpDir','tcDir'], next:['chkNext','grpNext','tcNext']};
+  Object.values(map).forEach(([chk,grp,tc])=>{
+    const on=$(chk).checked;
+    $(grp).style.display = on ? '' : 'none';
+    $(tc).classList.toggle('on', on);
+  });
+}
+function setSheet(k){
+  state.sheet=k;
+  $('tH').classList.toggle('on',k==='h'); $('tN').classList.toggle('on',k==='n');
+  $('raw').value = serialize(state.data[k]);
+  if(VERSIONS[state.version].kind!=='new') renderDiag();
+}
+function serialize(t){
+  const rows=[t.header,...t.rows];
+  return rows.map(r=>r.join('\t')).join('\n');
+}
+function onRaw(){
+  state.data[state.sheet]=parseTable($('raw').value);
+  render();
+}
+function clearSheet(){
+  state.data[state.sheet]={header:[],rows:[],autoHeader:false}; $('raw').value=''; render(); toast('已清空当前表');
+}
+function onStudentChange(){
+  state.sid=$('sid').value; loadStudent(); render();
+}
+function loadStudent(){
+  const s=curStudent();
+  $('stuInfo').innerHTML = (s.dir?`方向：${esc(s.dir)}<br>`:'') + (s.loc?`地区：${esc(s.loc)}<br>`:'') +
+    (s.doc?`腾讯文档：${esc(s.doc)}`:'（未登记数据源）');
+}
+function resetAll(){
+  if(!confirm('确定清空当前学员的全部数据与文案？')) return;
+  state.data={h:{header:[],rows:[],autoHeader:false}, n:{header:[],rows:[],autoHeader:false}}; $('raw').value='';
+  ['hl','nw','sub','mProg','mDir','mNext','mFore'].forEach(i=>$(i).value='');
+  render(); toast('已重置');
+}
+
+/* ==================== 学员管理 ==================== */
+function refreshStuSelect(){ $('sid').innerHTML=STUDENTS.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join(''); $('sid').value=state.sid; }
+function openMgmt(){
+  const s=curStudent();
+  $('sm_name').value=s.name; $('sm_dir').value=s.dir||''; $('sm_loc').value=s.loc||''; $('sm_doc').value=s.doc||'';
+  $('stuMgmt').style.display='block';
+}
+function saveStu(){
+  const s=curStudent();
+  s.name=$('sm_name').value.trim()||s.name; s.dir=$('sm_dir').value.trim(); s.loc=$('sm_loc').value.trim(); s.doc=$('sm_doc').value.trim();
+  saveStudents(); loadStudent(); refreshStuSelect(); toast('已保存学员信息');
+}
+function addStu(){
+  const name=$('sm_name').value.trim(); if(!name){ toast('请先填姓名'); return; }
+  const s={id:'s'+Date.now().toString(36), name, dir:$('sm_dir').value.trim(), loc:$('sm_loc').value.trim(), doc:$('sm_doc').value.trim()};
+  STUDENTS.push(s); saveStudents(); state.sid=s.id; refreshStuSelect(); loadStudent(); setVersion('f3'); render();
+  toast('已新增：'+name+'（已切到阶段版周报）');
+}
+function delStu(){
+  const s=curStudent(); if(STUDENTS.length<=1){ toast('至少保留一位学员'); return; }
+  if(!confirm('删除学员「'+s.name+'」？此操作不可撤销。')) return;
+  STUDENTS=STUDENTS.filter(x=>x.id!==s.id); saveStudents();
+  state.sid=STUDENTS[0].id; refreshStuSelect(); loadStudent(); render(); toast('已删除');
+}
+
+/* ==================== 导出 ==================== */
+function plainText(){
+  const s=curStudent(), week=$('week').value.trim(), range=$('range').value.trim();
+  const card=document.querySelector('#preview .card'); if(!card) return '';
+  const out=[];
+  out.push(`${s.name} 周报（${VERSIONS[state.version].name}） WEEK ${week.replace(/^W/i,'')} · ${range}`);
+  out.push('');
+  card.querySelectorAll('.sec').forEach(sec=>{
+    const t=sec.querySelector('.sec-t'); if(t) out.push('【'+t.textContent.trim()+'】');
+    sec.querySelectorAll('.plist li, .slist li').forEach(li=>out.push('· '+li.textContent.trim().replace(/^✓/,'').trim()));
+    sec.querySelectorAll('.kpi .k').forEach(k=>out.push('· '+k.querySelector('.t').textContent.trim()+'：'+k.querySelector('.n').textContent.trim()));
+    sec.querySelectorAll('.bars li').forEach(li=>out.push('· '+li.textContent.trim().replace(/\s+/g,' ')));
+    sec.querySelectorAll('table.rt tr').forEach((tr,i)=>{ const td=[...tr.children].map(c=>c.textContent.trim()); out.push((i===0?'· 表头：':'· ')+td.join(' | ')); });
+    const n=sec.querySelector('.notice'); if(n) out.push(n.textContent.trim());
+  });
+  out.push(''); out.push('留学生求职辅导 · 周报');
+  return out.join('\n');
+}
+function copyText(){
+  const t=plainText();
+  navigator.clipboard.writeText(t).then(()=>toast('纯文本版已复制，可直接粘贴到微信'))
+    .catch(()=>{ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制'); });
+}
+function downloadCard(){
+  const card=document.querySelector('#preview .card'); if(!card) return;
+  const css2=[...document.querySelectorAll('style')].map(s=>s.textContent).join('\n');
+  const html=`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>周报</title><style>${css2}</style></head><body>${card.outerHTML}</body></html>`;
+  dl(new Blob([html],{type:'text/html'}), `${curStudent().name}_周报_${$('range').value.trim().replace(/\s/g,'')}.html`);
+}
+function dl(blob,name){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+function exportPNG(){
+  const card=document.querySelector('#preview .card'); if(!card) return;
+  const w=card.offsetWidth||750, h=card.offsetHeight;
+  const cssText=[...document.querySelectorAll('style')].map(s=>s.textContent).join('\n');
+  const clone=card.cloneNode(true); clone.style.boxShadow='none'; clone.style.borderRadius='0';
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    <foreignObject width="100%" height="100%">
+      <div xmlns="http://www.w3.org/2000/svg" style="font-family:'Microsoft YaHei','PingFang SC',sans-serif">
+        <style>${cssText}</style>${clone.outerHTML}
+      </div>
+    </foreignObject></svg>`;
+  const img=new Image();
+  const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  img.onload=()=>{
+    const sc=2, cv=document.createElement('canvas'); cv.width=w*sc; cv.height=h*sc;
+    const ctx=cv.getContext('2d'); ctx.scale(sc,sc);
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+    cv.toBlob(b=>{ dl(b, `${curStudent().name}_周报_${$('range').value.trim().replace(/\s/g,'')}.png`); toast('PNG 已导出（2x 高清）'); });
+  };
+  img.onerror=()=>toast('导出失败，可直接用系统截图工具截卡片区域');
+  img.src=url;
+}
+/* 下载整个工作台为离线单文件（双击即用，零外部依赖） */
+function downloadWorkbench(){
+  const html = '<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+  dl(new Blob([html],{type:'text/html'}), '周报工作台_离线版.html');
+  toast('离线工作台已下载，双击即可使用（无需联网）');
+}
+function exportJSON(){
+  const data={
+    version:state.version, sid:state.sid, week:$('week').value, range:$('range').value,
+    data:state.data, hl:$('hl').value, nw:$('nw').value, sub:$('sub').value,
+    tipsOn:state.tipsOn, tips:$('tips').value, sec:state.sec,
+    manual:{prog:$('mProg').value,dir:$('mDir').value,next:$('mNext').value,fore:$('mFore').value},
+    students:STUDENTS
+  };
+  dl(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `周报数据_${curStudent().name}.json`);
+  toast('已保存为 JSON（含学员列表）');
+}
+function importJSON(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(Array.isArray(d.students) && d.students.length){ STUDENTS=d.students; saveStudents(); refreshStuSelect(); }
+      if(d.sid && STUDENTS.some(s=>s.id===d.sid)){ state.sid=d.sid; $('sid').value=d.sid; loadStudent(); }
+      if(d.version && VERSIONS[d.version]) state.version=d.version;
+      if(d.data) state.data=d.data;
+      if(d.week)$('week').value=d.week; if(d.range)$('range').value=d.range;
+      if(d.sub!=null)$('sub').value=d.sub; if(d.hl!=null)$('hl').value=d.hl; if(d.nw!=null)$('nw').value=d.nw;
+      if(d.tips!=null)$('tips').value=d.tips; if(d.tipsOn!=null){state.tipsOn=d.tipsOn;$('chkTips').checked=d.tipsOn;}
+      if(d.sec){state.sec={prog:d.sec.prog!==false,dir:d.sec.dir!==false,next:d.sec.next!==false};syncSecChk();}
+      if(d.manual){$('mProg').value=d.manual.prog||'';$('mDir').value=d.manual.dir||'';$('mNext').value=d.manual.next||'';$('mFore').value=d.manual.fore||'';}
+      $('rangeMode').value=state.rangeMode; setVersion(state.version); setSheet(state.sheet); render(); toast('数据已载入');
+    }catch(e){ toast('JSON 解析失败'); }
+  };
+  r.readAsText(f); inp.value='';
+}
+
+/* ==================== 持久化 ==================== */
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({
+    version:state.version, sid:state.sid, data:state.data,
+    rangeMode:state.rangeMode, includeNoDate:state.includeNoDate,
+    week:$('week').value, range:$('range').value,
+    hl:$('hl').value, nw:$('nw').value, sub:$('sub').value,
+    tipsOn:state.tipsOn, tips:$('tips').value, sec:state.sec,
+    manual:{prog:$('mProg').value,dir:$('mDir').value,next:$('mNext').value,fore:$('mFore').value}
+  })); }catch(e){}
+}
+function saveStudents(){ try{ localStorage.setItem(LS_STU, JSON.stringify(STUDENTS)); }catch(e){} }
+function loadStudents(){ try{ return JSON.parse(localStorage.getItem(LS_STU)||'null'); }catch(e){ return null; } }
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(!d) return false;
+    if(d.version && VERSIONS[d.version]) state.version=d.version;
+    state.sid=d.sid||state.sid; state.data=(d.data&&d.data.h)?d.data:state.data;
+    state.includeNoDate = d.includeNoDate!==false;
+    state.rangeMode = d.rangeMode==='range' ? 'range' : 'all';
+    if(d.tipsOn!=null) state.tipsOn=d.tipsOn;
+    if(d.sec) state.sec={prog:d.sec.prog!==false, dir:d.sec.dir!==false, next:d.sec.next!==false};
+    $('rangeMode').value = state.rangeMode;
+    $('week').value=d.week||'W1'; $('range').value=d.range||'10.27 - 10.31';
+    $('sub').value=d.sub||''; $('hl').value=d.hl||''; $('nw').value=d.nw||'';
+    $('tips').value = d.tips!=null ? d.tips : DEFAULT_TIPS;
+    $('chkTips').checked = state.tipsOn;
+    $('chkProg').checked=state.sec.prog; $('chkDir').checked=state.sec.dir; $('chkNext').checked=state.sec.next;
+    if(d.manual){$('mProg').value=d.manual.prog||'';$('mDir').value=d.manual.dir||'';$('mNext').value=d.manual.next||'';$('mFore').value=d.manual.fore||'';}
+    return true;
+  }catch(e){ return false;
+  }
+}
+function syncSecChk(){
+  $('chkProg').checked=state.sec.prog; $('chkDir').checked=state.sec.dir; $('chkNext').checked=state.sec.next;
+}
+
+/* ==================== 启动 ==================== */
+function initVersionTabs(){
+  $('vtabs').innerHTML = Object.entries(VERSIONS).map(([k,v])=>
+    `<div class="vtab" data-v="${k}" onclick="setVersion('${k}')">
+       <div class="vt"><i></i>${v.name}</div><div class="vd">${v.desc}</div>
+     </div>`).join('');
+}
+$('sid').innerHTML = STUDENTS.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+initVersionTabs();
+if(!load()){
+  state.data={h:{header:[],rows:[],autoHeader:false}, n:{header:[],rows:[],autoHeader:false}};
+  $('tips').value=DEFAULT_TIPS;
+}
+$('sid').value=state.sid; loadStudent();
+setVersion(state.version);
+setSheet(state.sheet);
+render();
+</script>
+</body>
+</html>
