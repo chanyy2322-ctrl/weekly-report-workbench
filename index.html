@@ -141,6 +141,8 @@
   .bars .tr{flex:1;height:9px;background:#EDF3EF;border-radius:5px;overflow:hidden}
   .bars .fl{display:block;height:100%;background:linear-gradient(90deg,#35A97A,#4FC08D);border-radius:5px}
   .bars .ct{flex:0 0 34px;text-align:right;color:#7C8B84;font-size:13px}
+  .uncat-hint{margin-top:10px;font-size:12px;line-height:1.6;color:#9A6A2E;background:#FDF6EA;border:1px solid #F2E2C4;border-radius:8px;padding:8px 10px}
+  .uncat-hint b{color:#8A5A1E}
   .plist{list-style:none}
   .plist li{display:flex;gap:10px;align-items:flex-start;font-size:15.5px;color:#4A5852;line-height:1.62;margin-bottom:11px}
   .plist li:last-child{margin-bottom:0}
@@ -373,6 +375,17 @@ const KW = [
   ['Robotics / Automotive', /robotics|autonomous|self.?driving|automotive|汽车|无人|自动驾驶/i],
   ['Quality / Regulatory', /quality|\bqc\b|\bqa\b|regulatory|合规|质量|注册|ra\b/i],
 ];
+/* 兜底分类：主词典未命中时，按通用岗位词二级归类，进一步减少「未分类」 */
+const FALLBACK = [
+  ['Engineering (Other)', /engineer|工程|开发|developer|技术/i],
+  ['Management / Lead', /manager|主管|负责人|lead|总监|head of|director|总监/i],
+  ['Analyst (Other)', /analyst|分析/i],
+  ['Associate / Entry', /associate|专员|助理|管培|trainee|储备/i],
+  ['Internship', /intern|实习/i],
+  ['Specialist / Consultant', /specialist|专家|顾问|consultant|咨询顾问/i],
+  ['Coordinator / Ops', /coordinator|运营|文员|admin|助理/i],
+  ['Sales / BD (Other)', /sales|商务|销售/i],
+];
 
 /* ==================== 状态 ==================== */
 let STUDENTS = loadStudents() || DEFAULT_STUDENTS.map(s=>({...s}));
@@ -490,13 +503,17 @@ function analyze(kind){
   });
   const inR = out.filter(r=>r.inRange);
   const dirsIn = {};
+  const uncat = [];
   inR.forEach(r=>{
     const txt=(r.job+' '+r.comp);
     let matched=false;
     for(const [nm,reg] of KW){ if(reg.test(txt)){ dirsIn[nm]=(dirsIn[nm]||0)+1; matched=true; break; } }
-    if(!matched) dirsIn['未分类']=(dirsIn['未分类']||0)+1;
+    if(!matched){
+      for(const [nm,reg] of FALLBACK){ if(reg.test(txt)){ dirsIn[nm]=(dirsIn[nm]||0)+1; matched=true; break; } }
+    }
+    if(!matched){ dirsIn['未分类']=(dirsIn['未分类']||0)+1; uncat.push((r.job||r.comp||'(空)').trim()); }
   });
-  return {total:out.length, week:inR.length, rows:out, weekRows:inR, statuses, dirs:dirsIn, cols, stCol};
+  return {total:out.length, week:inR.length, rows:out, weekRows:inR, statuses, dirs:dirsIn, cols, stCol, uncat};
 }
 
 /* ==================== 渲染卡片 ==================== */
@@ -532,12 +549,16 @@ function distSection(){
   const max=dArr.length?dArr[0][1]:1;
   const PAL=['#35A97A','#3B6FB0','#F2A03D','#7C52E8','#E85D9E','#22B573'];
   if(!dArr.length) return '';
+  const uncat=[...(H.uncat||[]),...(N.uncat||[])];
+  const uncatHtml = uncat.length
+    ? `<div class="uncat-hint">未归类 ${uncat.length} 个：${esc(uncat.slice(0,15).join('、'))}${uncat.length>15?' 等':''}</div>`
+    : '';
   return `
       <div class="sec">
         <div class="sec-t"><i></i>岗位方向分布<em>共 ${dArr.length} 类</em></div>
         <ul class="bars">${dArr.map(([k,val],i)=>`
           <li><span class="nm">${esc(k)}</span><span class="tr"><span class="fl" style="width:${Math.max(8,Math.round(val/max*100))}%;background:${PAL[i%PAL.length]}"></span></span><span class="ct">${val}</span></li>`).join('')}
-        </ul>
+        </ul>${uncatHtml}
       </div>`;
 }
 function buildCard(){
