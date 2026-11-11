@@ -742,6 +742,8 @@ function buildCard(){
   }
 
   if(state.tipsOn) body += tipsHtml;
+  /* 页脚：仅移除「留学生求职辅导 · 周报」文字，容器与占位高度保持不变 */
+  body += `<div class="ftr">&nbsp;</div>`;
 
   const hkp = v.kind==='vet2' ? `
       <div class="hkp">
