@@ -167,8 +167,9 @@
   .ditem:last-child{margin-bottom:0}
   .dhead{display:flex;align-items:center;gap:10px}
   .pill{flex:0 0 auto;font-size:12.5px;font-weight:700;padding:3px 11px;border-radius:5px}
-  .pill.p1{background:#CFEBDB;color:#2A8A62}
-  .pill.p2{background:#E3EFE8;color:#7A6FA0}
+  .pill.p1{background:#FADCDC;color:#C05553}
+  .pill.p2{background:#DCE9F9;color:#3B6FB0}
+  .pill.p3{background:#FBE9CF;color:#D98E2B}
   .dhead b{font-size:16px;color:#26332D;font-weight:700}
   .ddesc{margin-top:6px;margin-left:62px;font-size:14.5px;color:#75837C;line-height:1.6}
   .slist{list-style:none}
@@ -303,8 +304,8 @@
         <textarea id="mProg" rows="5" oninput="render()"></textarea>
       </div>
       <div class="grp" id="grpDir">
-        <div class="lab">岗位方向（每行：优先/备选 | 方向 | 说明）</div>
-        <textarea id="mDir" rows="4" oninput="render()" placeholder="优先 | AI 解决方案顾问 | 预土背景 + AI/数字化方向匹配度高"></textarea>
+        <div class="lab">岗位方向（直接整段粘贴，格式如：优先方向：／备选方向：／地区：，每组下的每行一个条目；也兼容每行「等级 | 标题 | 说明」。胶囊固定：优先红、其次蓝、地区橙）</div>
+        <textarea id="mDir" rows="6" oninput="render()" placeholder="优先方向：&#10;摄影类岗位（含摄影助理）&#10;偏摄影方向的 PA（制片助理）岗位——小剧组职能边界相对模糊，两类可一并切入&#10;备选方向：&#10;道具、美术/美工、剪辑等相关机会，作为并行关注 地区：温哥华为主"></textarea>
       </div>
       <div class="grp" id="grpNext">
         <div class="lab">你的下一步（每行一条）</div>
@@ -680,19 +681,50 @@ function buildCard(){
     /* 形式三 · 阶段版（尚嘉龙样式：进展/方向/下一步，板块可勾选） */
     const sec=state.sec;
     const prog=lines($('mProg').value), next=lines($('mNext').value);
-    const dirs=lines($('mDir').value).map(l=>l.split('|').map(x=>x.trim()));
     sub=$('sub').value.trim()||'求职准备持续推进，继续保持节奏！';
     if(sec.prog){
       body += `<div class="sec"><div class="sec-t"><i></i>本周进展</div><ul class="plist">${
         (prog.length?prog:['（待填写本周进展）']).map(t=>`<li><span class="ck">✓</span><span>${esc(t)}</span></li>`).join('')}</ul></div>`;
     }
     if(sec.dir){
-      body += `<div class="sec"><div class="sec-t"><i></i>为你锁定的方向${s.loc?`<em>${esc(s.loc)}</em>`:''}</div><div class="dbox">${
-        dirs.length ? dirs.map(d=>{
-          const lv=d[0]||'备选', cls=/优先|地区|主线|priority/i.test(lv)?(/地区/.test(lv)?'p2':'p1'):'p2';
-          return `<div class="ditem"><div class="dhead"><span class="pill ${cls}">${esc(lv)}</span><b>${esc(d[1]||'')}</b></div>${
-            d[2]?`<div class="ddesc">${esc(d[2])}</div>`:''}</div>`;
-        }).join('') : '<div class="ditem"><div class="dhead"><span class="pill p2">方向</span><b>（待填写岗位方向）</b></div></div>'
+      /* 支持两种输入格式：
+         A) 整段复制格式：标题行「优先方向：」「备选方向：」「地区：」开启分组，其下每行一个条目；
+            「地区：温哥华为主」也可内联写在条目行尾（如「……作为并行关注 地区：温哥华为主」会自动拆开）。
+         B) 竖线格式：每行 等级 | 标题 | 说明。 */
+      const dAll=[];
+      let cur='p2';
+      lines($('mDir').value).forEach(l=>{
+        let t=l.trim(); if(!t) return;
+        /* 组标题行（冒号后可直接跟内容，防止复制时换行丢失） */
+        let hm;
+        if((hm=t.match(/^优先(?:方向|岗位|赛道)?[:：]\s*(.+)$/))){ cur='p1'; t=hm[1].trim(); }
+        else if((hm=t.match(/^(?:备选|其次)(?:方向|岗位|赛道)?[:：]\s*(.+)$/))){ cur='p2'; t=hm[1].trim(); }
+        else if((hm=t.match(/^地区(?:方向|范围)?[:：]\s*(.+)$/))){ cur='p3'; t=hm[1].trim(); }
+        else if(/^优先(?:方向|岗位|赛道)?[:：]?\s*$/.test(t)){ cur='p1'; return; }
+        else if(/^(?:备选|其次)(?:方向|岗位|赛道)?[:：]?\s*$/.test(t)){ cur='p2'; return; }
+        else if(/^地区(?:方向|范围)?[:：]?\s*$/.test(t)){ cur='p3'; return; }
+        const geo=t.match(/^(.*?)地区[:：]\s*(.+)$/);
+        if(geo){
+          const pre=geo[1].trim(); const g=geo[2].trim();
+          if(pre) dAll.push({cls:cur||'p2',title:pre});
+          dAll.push({cls:'p3',title:g});
+          return;
+        }
+        if(t.includes('|')){
+          const d=t.split('|').map(x=>x.trim());
+          const cls=/优先|主线|priority/i.test(d[0])?'p1':(/地区/.test(d[0])?'p3':'p2');
+          dAll.push({cls,title:d[1]||'',desc:d[2]||''});
+          return;
+        }
+        dAll.push({cls:cur||'p2',title:t});
+      });
+      const dItem=d=>{
+        const lv=d.cls==='p1'?'优先':(d.cls==='p3'?'地区':'其次');
+        return `<div class="ditem"><div class="dhead"><span class="pill ${d.cls}">${lv}</span><b>${esc(d.title||'')}</b></div>${
+          d.desc?`<div class="ddesc">${esc(d.desc)}</div>`:''}</div>`;
+      };
+      body += `<div class="sec"><div class="sec-t"><i></i>为你锁定的方向</div><div class="dbox">${
+        dAll.length ? dAll.map(dItem).join('') : '<div class="ditem"><div class="dhead"><b>（待填写岗位方向）</b></div></div>'
       }</div></div>`;
     }
     if(sec.next){
@@ -872,6 +904,11 @@ function plainText(){
     sec.querySelectorAll('.plist li, .slist li').forEach(li=>out.push('· '+li.textContent.trim().replace(/^✓/,'').trim()));
     sec.querySelectorAll('.kpi .k').forEach(k=>out.push('· '+k.querySelector('.t').textContent.trim()+'：'+k.querySelector('.n').textContent.trim()));
     sec.querySelectorAll('.bars li').forEach(li=>out.push('· '+li.textContent.trim().replace(/\s+/g,' ')));
+    sec.querySelectorAll('.ditem').forEach(di=>{
+      const head=[...di.querySelectorAll('.pill,b')].map(x=>x.textContent.trim()).filter(Boolean).join(' ');
+      const dsc=di.querySelector('.ddesc');
+      out.push('· '+head+(dsc?'：'+dsc.textContent.trim():''));
+    });
     sec.querySelectorAll('table.rt tr').forEach((tr,i)=>{ const td=[...tr.children].map(c=>c.textContent.trim()); out.push((i===0?'· 表头：':'· ')+td.join(' | ')); });
     const n=sec.querySelector('.notice'); if(n) out.push(n.textContent.trim());
   });
