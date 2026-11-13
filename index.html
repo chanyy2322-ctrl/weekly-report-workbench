@@ -807,7 +807,7 @@ function buildCard(){
     return `
       <div class="hkp">
         <div class="hk"><span class="hkck">✓</span><div class="hkt"><b>${esc(hLab)}</b><small>重点岗位见下方列表</small></div></div>
-        <div class="hk"><i class="hkn">${nVal}</i><div class="hkt"><b>${esc(nLab)}</b><small>${esc(nSub)}</small></div></div>
+        <div class="hk">${empty ? '' : `<i class="hkn">${nVal}</i>`}<div class="hkt"><b>${esc(nLab)}</b><small>${esc(nSub)}</small></div></div>
       </div>`;
   })() : '';
   const pushed = (v.kind==='vet1') ? fs.pushed.length : 0;
