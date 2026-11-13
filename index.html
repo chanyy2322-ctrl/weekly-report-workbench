@@ -656,7 +656,7 @@ function buildCard(){
           </div>
           <div class="c2">
             <div class="c2h"><span class="ic i2">内</span><b>内推</b><span class="c2n">${focus.length} 个</span></div>
-            <div class="c2b">${fs.total?'本周'+esc(stSummary(fs)):'本周暂无内推记录'}</div>
+            <div class="c2b">${fs.total?'本周'+esc(stSummary(fs)):'本周暂无合适内推'}</div>
             <div class="c2s">${focus.slice(0,2).map(r=>esc([r.comp,r.job].filter(Boolean).join(' · '))).filter(Boolean).join('<br>')||'—'}</div>
           </div>
         </div>
@@ -699,7 +699,7 @@ function buildCard(){
           </div>
           <div class="c2">
             <div class="c2h"><span class="ic i2">内</span><b>内推</b><span class="c2n">${focus.length} 个</span></div>
-            <div class="c2b">${fs.total?'本周'+esc(stSummary(fs)):'本周暂无内推记录'}</div>
+            <div class="c2b">${fs.total?'本周'+esc(stSummary(fs)):'本周暂无合适内推'}</div>
             <div class="c2s">${focus.slice(0,2).map(r=>esc([r.comp,r.job].filter(Boolean).join(' · '))).filter(Boolean).join('<br>')||'—'}</div>
           </div>
         </div>
@@ -730,7 +730,7 @@ function buildCard(){
     body += `
       <div class="sec">
         <div class="sec-t"><i></i>下周重点</div>
-        <ul class="plist">${(nw.length?nw:['跟进本周已投递岗位与内推的后续反馈','继续拓展本周重点方向岗位，保持投递节奏']).map(t=>`<li><span class="dot">•</span><span>${esc(t)}</span></li>`).join('')}</ul>
+        <ul class="plist">${(nw.length?nw:(focus.length?['跟进本周已投递岗位与内推的后续反馈','继续拓展本周重点方向岗位，保持投递节奏']:['跟进本周已投递岗位，持续匹配合适内推机会','继续拓展本周重点方向岗位，保持投递节奏'])).map(t=>`<li><span class="dot">•</span><span>${esc(t)}</span></li>`).join('')}</ul>
       </div>`;
 
   } else {
@@ -798,9 +798,10 @@ function buildCard(){
     /* 顶部汇总卡与明细表同一数据源（fs）：全已推进→「内推已推进」，全待确认→「内推待确认」，
        混合→「内推进展」+ 明细小字；数量始终等于「内推重点岗位」表行数 */
     const mixed = fs.pushed.length && fs.pending.length;
-    const nLab = mixed ? '内推进展' : (fs.pushed.length ? '内推已推进' : '内推待确认');
+    const empty = !fs.total;
+    const nLab = mixed ? '内推进展' : (fs.pushed.length ? '内推已推进' : (empty ? '本周暂无合适内推' : '内推待确认'));
     const nVal = mixed ? fs.total : (fs.pushed.length || fs.pending.length);
-    const nSub = mixed ? `已推进 ${fs.pushed.length} · 待确认 ${fs.pending.length}` : (fs.total?'详见「内推重点岗位」':'本周暂无合适内推');
+    const nSub = mixed ? `已推进 ${fs.pushed.length} · 待确认 ${fs.pending.length}` : (empty ? '' : '详见「内推重点岗位」');
     const hAllPushed = !H.weekRows.length || H.weekRows.every(r=>statusBucket(haiStatus(r))==='pushed');
     const hLab = hAllPushed ? '海投 · 已投递' : `海投 · ${H.weekRows.filter(r=>statusBucket(haiStatus(r))==='pending').length} 个待确认`;
     return `
