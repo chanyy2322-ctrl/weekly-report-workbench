@@ -361,13 +361,13 @@ const BAD_STATUS = ['不考虑','岗位关闭','已过期'];
    - 状态桶判定顺序：排除(bad) → 已确认推进(pushed) → 待确认(pending)；
      空状态与未识别状态一律保守归 pending，不强行标成已推进（宁缺勿错）。
    - 状态映射（唯一定义，所有模块共用）：
-       已确认推进 pushed = 已推进 / 推进中 / 已投 / 已投递 / 已提交 / 已确认 / 已接受 / 已约面 / 面试通过 / yes / y / 是 / true
+       已确认推进 pushed = 已推进 / 推进中 / 已发内推人 / 已投 / 已投递 / 已提交 / 已确认 / 已接受 / 已约面 / 面试通过 / yes / y / 是 / true
        待确认   pending = 待确认 / 待定 / 待跟进 / 待回复 / 待沟通 / 暂缓 / 暂时无法推进 / 待作品集完善 / 跟进中 / 待反馈，及任何未识别值
        不计入   bad     = 不考虑 / 岗位关闭 / 已过期（排除在「内推重点岗位」之外）
        海投显示归一：是否投递列 yes / 是 / 已投 等统一显示「已投递」；空值沿用原约定默认「已投递」
    - 桶只用于汇总统计与状态文案；明细表始终显示原始状态文本（保留原始业务状态，绝不回写改写数据）。
    - 顶部汇总 / 渠道进展 / 本周亮点 / 岗位明细统一从 focusStats() 取数，禁止各自推导或写死。 */
-const ST_PUSHED = /已推进|推进中|已投|已投递|已提交|已确认|已接受|已约面|面试通过|\byes\b|\by\b|\btrue\b|是/i;
+const ST_PUSHED = /已推进|推进中|已发内推人|已投|已投递|已提交|已确认|已接受|已约面|面试通过|\byes\b|\by\b|\btrue\b|是/i;
 function statusBucket(st){
   const s=String(st||'').trim();
   if(!s) return 'pending';
@@ -799,7 +799,8 @@ function buildCard(){
        混合→「内推进展」+ 明细小字；数量始终等于「内推重点岗位」表行数 */
     const mixed = fs.pushed.length && fs.pending.length;
     const empty = !fs.total;
-    const nLab = mixed ? '内推进展' : (fs.pushed.length ? '内推已推进' : (empty ? '本周暂无合适内推' : '内推待确认'));
+    const allSent = fs.pushed.length && fs.pushed.every(r=>/已发内推人/.test(r.status||''));
+    const nLab = mixed ? '内推进展' : (fs.pushed.length ? (allSent ? '内推已发内推人' : '内推已推进') : (empty ? '本周暂无合适内推' : '内推待确认'));
     const nVal = mixed ? fs.total : (fs.pushed.length || fs.pending.length);
     const nSub = mixed ? `已推进 ${fs.pushed.length} · 待确认 ${fs.pending.length}` : (empty ? '' : '详见「内推重点岗位」');
     const hAllPushed = !H.weekRows.length || H.weekRows.every(r=>statusBucket(haiStatus(r))==='pushed');
