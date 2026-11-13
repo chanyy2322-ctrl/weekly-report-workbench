@@ -353,6 +353,55 @@ const DEFAULT_STUDENTS = [
 
 /* 内推状态：需排除在「内推重点」之外的取值 */
 const BAD_STATUS = ['不考虑','岗位关闭','已过期'];
+
+/* ==================== 统一状态层（状态一致性修复） ====================
+   此前「渠道进展卡 / 顶部汇总卡 / 本周亮点」把内推状态写死为「待确认」，
+   而「岗位明细表」显示原始状态（如「已推进」），同一岗位跨模块状态不一致。
+   规则：
+   - 状态桶判定顺序：排除(bad) → 已确认推进(pushed) → 待确认(pending)；
+     空状态与未识别状态一律保守归 pending，不强行标成已推进（宁缺勿错）。
+   - 状态映射（唯一定义，所有模块共用）：
+       已确认推进 pushed = 已推进 / 推进中 / 已投 / 已投递 / 已提交 / 已确认 / 已接受 / 已约面 / 面试通过 / yes / y / 是 / true
+       待确认   pending = 待确认 / 待定 / 待跟进 / 待回复 / 待沟通 / 暂缓 / 暂时无法推进 / 待作品集完善 / 跟进中 / 待反馈，及任何未识别值
+       不计入   bad     = 不考虑 / 岗位关闭 / 已过期（排除在「内推重点岗位」之外）
+       海投显示归一：是否投递列 yes / 是 / 已投 等统一显示「已投递」；空值沿用原约定默认「已投递」
+   - 桶只用于汇总统计与状态文案；明细表始终显示原始状态文本（保留原始业务状态，绝不回写改写数据）。
+   - 顶部汇总 / 渠道进展 / 本周亮点 / 岗位明细统一从 focusStats() 取数，禁止各自推导或写死。 */
+const ST_PUSHED = /已推进|推进中|已投|已投递|已提交|已确认|已接受|已约面|面试通过|\byes\b|\by\b|\btrue\b|是/i;
+function statusBucket(st){
+  const s=String(st||'').trim();
+  if(!s) return 'pending';
+  if(BAD_STATUS.some(b=>s.includes(b))) return 'bad';
+  if(ST_PUSHED.test(s)) return 'pushed';
+  return 'pending';
+}
+function statusCls(st){ const b=statusBucket(st); return b==='pushed'?'':(b==='pending'?'w':'g'); }
+/* 海投状态显示归一：所有模块（顶部/渠道/明细）共用同一映射 */
+function haiStatus(r){
+  const raw=(r.done||r.status||'').trim();
+  return /^(yes|y|是|true|已投|已投递|已提交|已递)$/i.test(raw)?'已投递':(raw||'已投递');
+}
+/* 内推重点岗位状态汇总：唯一数据源（明细行=total，已确认推进=pushed，待确认=pending） */
+function focusStats(rows){
+  const pushed=[],pending=[];
+  rows.forEach(r=>{ (statusBucket(r.status)==='pushed'?pushed:pending).push(r); });
+  return {pushed,pending,total:rows.length};
+}
+/* 状态摘要（渠道卡副标题）：数量与明细表按状态桶统计严格一致 */
+function stSummary(fs){
+  const p=fs.pushed.length,q=fs.pending.length;
+  if(!p&&!q) return '暂无记录';
+  if(p&&!q) return `已确认推进 ${p} 个`;
+  if(q&&!p) return `待确认 ${q} 个`;
+  return `已推进 ${p} · 待确认 ${q}`;
+}
+/* 本周亮点内推行：按真实状态分组生成，数量与下方明细严格一致 */
+function focusHighlightLines(fs){
+  const L=[];
+  if(fs.pushed.length) L.push(`内推已确认推进（${fs.pushed.length} 个）：${fs.pushed.slice(0,3).map(r=>r.comp).filter(Boolean).join('、')}`);
+  if(fs.pending.length) L.push(`内推待确认（${fs.pending.length} 个）：${fs.pending.slice(0,3).map(r=>r.comp).filter(Boolean).join('、')}`);
+  return L;
+}
 /* 方向关键词词典（用于自动生成岗位方向分布，first-match 命中即归类） */
 const KW = [
   ['Software / SDE', /software|\bsde\b|后端|前端|full.?stack|全栈|devops|sre|嵌入式|firmware|web ?dev/i],
@@ -543,7 +592,7 @@ function focusTable(rows,title){
           <tr><th style="width:150px">公司</th><th>岗位</th><th style="width:110px">状态</th></tr>
           ${rows.map(r=>{
             const st=(r.status||r.done||'').trim()||'待确认';
-            const cls = /已推进|推进中|已投/.test(st)?'' : (/待确认|待作品|暂时/.test(st)?'w':'g');
+            const cls = statusCls(st);   /* 统一状态映射；esc(st) 仍为原始业务状态文本，不改数据 */
             return `<tr><td class="co">${esc(r.comp||'—')}</td><td>${esc(r.job||'—')}</td><td><span class="s ${cls}">${esc(st)}</span></td></tr>`;
           }).join('')}
         </table>
@@ -572,11 +621,12 @@ function distSection(){
 function buildCard(){
   const s = curStudent(), week=$('week').value.trim(), range=$('range').value.trim();
   const v = VERSIONS[state.version];
-  let body='', sub='', hn=0, nn=0, focus=[], H=null, N=null;
+  let body='', sub='', hn=0, nn=0, focus=[], H=null, N=null, fs={pushed:[],pending:[],total:0};
   if(v.kind!=='new'){
     H=analyze('h'); N=analyze('n');
     hn=H.week; nn=N.week;
-    focus=N.weekRows.filter(r=>!BAD_STATUS.some(b=>r.status.includes(b)));
+    focus=N.weekRows.filter(r=>statusBucket(r.status)!=='bad');   /* 与 BAD_STATUS 同口径 */
+    fs=focusStats(focus);                                         /* 顶部/渠道/亮点/明细统一从这里取数 */
   }
   const tipsHtml = state.tipsOn
     ? `<div class="notice"><b>温馨提示：</b>${esc($('tips').value.trim()||DEFAULT_TIPS)}</div>` : '';
@@ -591,7 +641,7 @@ function buildCard(){
     if(!hl.length){
       hl=[];
       if(hn) hl.push(`海投渠道本周推进 ${hn} 个岗位，覆盖 ${Object.keys(H.dirs).length||1} 个方向`);
-      if(nn) hl.push(`内推渠道新增 ${nn} 个岗位，其中 ${focus.filter(r=>/已推进|推进中|已投/.test(r.status)).length} 个已确认推进`);
+      if(focus.length) hl.push(...focusHighlightLines(fs));   /* 按真实状态分组，数量与明细一致 */
       if(!hl.length) hl.push('本周完成岗位盘点与投递材料准备，为下一轮集中投递打好基础');
     }
 
@@ -602,11 +652,11 @@ function buildCard(){
           <div class="c2">
             <div class="c2h"><span class="ic">海</span><b>海投</b><span class="c2n">${hn} 个</span></div>
             <div class="c2b">${hn} 个岗位提交</div>
-            <div class="c2s">${hn?'全部已投递':'本周暂无海投记录'}</div>
+            <div class="c2s">${hn?(H.weekRows.filter(r=>statusBucket(haiStatus(r))==='pending').length?`${H.weekRows.filter(r=>statusBucket(haiStatus(r))==='pending').length} 个待确认`:'全部已投递'):'本周暂无海投记录'}</div>
           </div>
           <div class="c2">
             <div class="c2h"><span class="ic i2">内</span><b>内推</b><span class="c2n">${focus.length} 个</span></div>
-            <div class="c2b">本周已推进</div>
+            <div class="c2b">${fs.total?'本周'+esc(stSummary(fs)):'本周暂无内推记录'}</div>
             <div class="c2s">${focus.slice(0,2).map(r=>esc([r.comp,r.job].filter(Boolean).join(' · '))).filter(Boolean).join('<br>')||'—'}</div>
           </div>
         </div>
@@ -633,8 +683,8 @@ function buildCard(){
     let hl=lines($('hl').value);
     if(!hl.length){
       hl=[];
-      if(hn) hl.push('海投岗位均已投递完成，重点岗位整理见下方列表');
-      if(focus.length) hl.push(`内推待确认（${focus.length} 个）：${focus.slice(0,3).map(r=>r.comp).filter(Boolean).join('、')}`);
+      if(hn) hl.push('海投岗位均已投递完成，重点岗位整理见上方列表');
+      if(focus.length) hl.push(...focusHighlightLines(fs));   /* 按真实状态分组，数量与明细一致 */
       if(!hl.length) hl.push('本周完成岗位盘点与投递材料准备，为下一轮集中投递打好基础');
     }
 
@@ -649,7 +699,7 @@ function buildCard(){
           </div>
           <div class="c2">
             <div class="c2h"><span class="ic i2">内</span><b>内推</b><span class="c2n">${focus.length} 个</span></div>
-            <div class="c2b">本周待确认</div>
+            <div class="c2b">${fs.total?'本周'+esc(stSummary(fs)):'本周暂无内推记录'}</div>
             <div class="c2s">${focus.slice(0,2).map(r=>esc([r.comp,r.job].filter(Boolean).join(' · '))).filter(Boolean).join('<br>')||'—'}</div>
           </div>
         </div>
@@ -662,9 +712,8 @@ function buildCard(){
         <table class="rt">
           <tr><th style="width:150px">公司</th><th>岗位</th><th style="width:96px">状态</th></tr>
           ${H.weekRows.map(r=>{
-            const raw=(r.done||r.status||'').trim();
-            const st=/^(yes|y|是|true|已投|已投递|已提交|已递)$/i.test(raw)?'已投递':(raw||'已投递');
-            const cls=/待/.test(st)?'w':'';
+            const st=haiStatus(r);          /* 与顶部汇总卡 / 渠道进展同一状态映射 */
+            const cls=statusCls(st);       /* 统一状态映射 */
             return `<tr><td class="co">${esc(r.comp||'—')}</td><td>${esc(r.job||'—')}</td><td><span class="s ${cls}">${esc(st)}</span></td></tr>`;
           }).join('')}
         </table>
@@ -745,17 +794,28 @@ function buildCard(){
   /* 页脚：仅移除「留学生求职辅导 · 周报」文字，容器与占位高度保持不变 */
   body += `<div class="ftr">&nbsp;</div>`;
 
-  const hkp = v.kind==='vet2' ? `
+  const hkp = v.kind==='vet2' ? (()=>{
+    /* 顶部汇总卡与明细表同一数据源（fs）：全已推进→「内推已推进」，全待确认→「内推待确认」，
+       混合→「内推进展」+ 明细小字；数量始终等于「内推重点岗位」表行数 */
+    const mixed = fs.pushed.length && fs.pending.length;
+    const nLab = mixed ? '内推进展' : (fs.pushed.length ? '内推已推进' : '内推待确认');
+    const nVal = mixed ? fs.total : (fs.pushed.length || fs.pending.length);
+    const nSub = mixed ? `已推进 ${fs.pushed.length} · 待确认 ${fs.pending.length}` : (fs.total?'详见「内推重点岗位」':'本周暂无内推');
+    const hAllPushed = !H.weekRows.length || H.weekRows.every(r=>statusBucket(haiStatus(r))==='pushed');
+    const hLab = hAllPushed ? '海投 · 已投递' : `海投 · ${H.weekRows.filter(r=>statusBucket(haiStatus(r))==='pending').length} 个待确认`;
+    return `
       <div class="hkp">
-        <div class="hk"><span class="hkck">✓</span><div class="hkt"><b>海投 · 已投递</b><small>重点岗位见下方列表</small></div></div>
-        <div class="hk"><i class="hkn">${focus.length}</i><div class="hkt"><b>内推待确认</b><small>详见「内推重点岗位」</small></div></div>
-      </div>` : '';
-  const pushed = (v.kind==='vet1' && focus) ? focus.filter(r=>/已推进|推进中|已投/.test(r.status)).length : 0;
+        <div class="hk"><span class="hkck">✓</span><div class="hkt"><b>${esc(hLab)}</b><small>重点岗位见下方列表</small></div></div>
+        <div class="hk"><i class="hkn">${nVal}</i><div class="hkt"><b>${esc(nLab)}</b><small>${esc(nSub)}</small></div></div>
+      </div>`;
+  })() : '';
+  const pushed = (v.kind==='vet1') ? fs.pushed.length : 0;
+  const pendingN = (v.kind==='vet1') ? fs.pending.length : 0;
   const hks = v.kind==='vet1' ? `
       <div class="hks">
         <div class="hk"><div class="n">${hn+nn}</div><div class="t">本周投递总数</div></div>
         <div class="hk"><div class="n">${hn}</div><div class="t">海投岗位</div></div>
-        <div class="hk"><div class="n">${pushed}</div><div class="t">内推已推进 ${pushed} 个</div></div>
+        <div class="hk"><div class="n">${pushed||pendingN}</div><div class="t">内推${pushed?`已推进 ${pushed} 个`:pendingN?`待确认 ${pendingN} 个`:'待确认 0 个'}</div></div>
       </div>` : '';
   const dt = (v.kind==='vet2'||v.kind==='vet1') ? `<div class="dt">${esc(range)}</div>` : '';
   const h1 = v.kind==='new'
