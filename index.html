@@ -800,7 +800,7 @@ function buildCard(){
     const mixed = fs.pushed.length && fs.pending.length;
     const nLab = mixed ? '内推进展' : (fs.pushed.length ? '内推已推进' : '内推待确认');
     const nVal = mixed ? fs.total : (fs.pushed.length || fs.pending.length);
-    const nSub = mixed ? `已推进 ${fs.pushed.length} · 待确认 ${fs.pending.length}` : (fs.total?'详见「内推重点岗位」':'本周暂无内推');
+    const nSub = mixed ? `已推进 ${fs.pushed.length} · 待确认 ${fs.pending.length}` : (fs.total?'详见「内推重点岗位」':'本周暂无合适内推');
     const hAllPushed = !H.weekRows.length || H.weekRows.every(r=>statusBucket(haiStatus(r))==='pushed');
     const hLab = hAllPushed ? '海投 · 已投递' : `海投 · ${H.weekRows.filter(r=>statusBucket(haiStatus(r))==='pending').length} 个待确认`;
     return `
